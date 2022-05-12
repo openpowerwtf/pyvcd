@@ -485,7 +485,10 @@ class GTKWSave:
                   if ':' in bits:
                      s = int(bits.split(':')[0])
                      e = int(bits.split(':')[1])
-                     for j in range(s, e, (1 if s < e else -1)):
+                     # doesnt number by actual bit!
+                     # for j in range(s, e + (1 if s < e else -1), (1 if s < e else -1)):
+                        # self._p(f'({j}){name[i]} ', end='')
+                     for j in range(e-s+1 if s < e else s-e+1):
                         self._p(f'({j}){name[i]} ', end='')
                   else:
                      self._p(f'(bits){name[i]} ', end='')
