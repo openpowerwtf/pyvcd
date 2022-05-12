@@ -491,6 +491,7 @@ class GTKWSave:
                      self._p(f'(bits){name[i]} ', end='')
                else:
                   self._p(f'{name[i]} ', end='')
+            self._p('')
         else:
             if alias:
                self._p(f'+{{{alias}}} ', end='')
