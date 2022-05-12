@@ -125,6 +125,7 @@ class GTKWSave:
         self._color_stack = [GTKWColor.normal]
         self._filter_files: List[str] = []
         self._filter_procs: List[str] = []
+        self._filter_trans: List[str] = []
 
     def _p(self, *args: object, **kwargs) -> None:
         print(*args, file=self.file, **kwargs)
@@ -173,6 +174,15 @@ class GTKWSave:
                 self._filter_procs.append(proc_path)
                 filter_id = len(self._filter_procs)
             self._p(f'^>{filter_id} {proc_path}')
+
+    def _set_transaction_filter_proc(self, proc_path: Optional[str]) -> None:
+        if proc_path:
+            try:
+                filter_id = 1 + self._filter_trans.index(proc_path)
+            except ValueError:
+                self._filter_trans.append(proc_path)
+                filter_id = len(self._filter_trans)
+            self._p(f'^<{filter_id} {proc_path}')
 
     def comment(self, *comments: Sequence[str]) -> None:
         """Add comment line(s) to save file."""
@@ -409,6 +419,7 @@ class GTKWSave:
         extraflags: Union[GTKWFlag, Optional[Sequence[str]]] = GTKWFlag(0),
         translate_filter_file: Optional[str] = None,
         translate_filter_proc: Optional[str] = None,
+        transaction_filter_proc: Optional[str] = None
     ) -> None:
         """Add signal trace to save file.
 
@@ -455,13 +466,35 @@ class GTKWSave:
             flags |= GTKWFlag.ftranslated
         if translate_filter_proc:
             flags |= GTKWFlag.ptranslated
+        if transaction_filter_proc:
+            flags |= GTKWFlag.ttranslated
         self._set_flags(flags)
         self._set_color(color)
         self._set_translate_filter_file(translate_filter_file)
         self._set_translate_filter_proc(translate_filter_proc)
-        if alias:
-            self._p(f'+{{{alias}}} ', end='')
-        self._p(name)
+        self._set_transaction_filter_proc(transaction_filter_proc)
+        if type(name) is list:
+            if alias is None:
+               self._p(f'#{{}} ', end='')
+            else:
+               self._p(f'#{{{alias}}} ', end='')
+            #wtf apparently need to expand bits here for vectors
+            for i in range(len(name)):
+               if '[' in name[i]:
+                  bits = name[i][name[i].find('[')+1:-1]
+                  if ':' in bits:
+                     s = int(bits.split(':')[0])
+                     e = int(bits.split(':')[1])
+                     for j in range(s, e, (1 if s < e else -1)):
+                        self._p(f'({j}){name[i]} ', end='')
+                  else:
+                     self._p(f'(bits){name[i]} ', end='')
+               else:
+                  self._p(f'{name[i]} ', end='')
+        else:
+            if alias:
+               self._p(f'+{{{alias}}} ', end='')
+            self._p(name)
 
     @contextmanager
     def trace_bits(
@@ -475,6 +508,7 @@ class GTKWSave:
         extraflags: Union[GTKWFlag, Optional[Sequence[str]]] = GTKWFlag(0),
         translate_filter_file: Optional[str] = None,
         translate_filter_proc: Optional[str] = None,
+        showVector = True
     ) -> Generator[None, None, None]:
         """Contextmanager for tracing bits of a vector signal.
 
@@ -501,17 +535,27 @@ class GTKWSave:
         :param str translate_filter_proc: path to translate filter executable.
 
         """
-        self.trace(
-            name,
-            alias,
-            color,
-            datafmt,
-            highlight,
-            rjustify,
-            extraflags,
-            translate_filter_file,
-            translate_filter_proc,
-        )
+        if showVector:
+            self.trace(
+               name,
+               alias,
+               color,
+               datafmt,
+               highlight,
+               rjustify,
+               extraflags | GTKWFlag.grp_begin,
+               translate_filter_file,
+               translate_filter_proc,
+            )
+        else:
+            # seems to work but get a bogus {
+            if name is not None:
+               flags = GTKWFlag.blank | GTKWFlag.grp_begin
+               if highlight:
+                  flags |= GTKWFlag.highlight
+               self._set_flags(flags)
+               self._p(f'-{name}')
+
         flags = GTKWFlag.bin
         if isinstance(extraflags, GTKWFlag):
             flags |= extraflags
