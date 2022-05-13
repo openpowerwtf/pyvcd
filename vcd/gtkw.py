@@ -553,12 +553,14 @@ class GTKWSave:
             )
         else:
             # seems to work but get a bogus {
-            if name is not None:
-               flags = GTKWFlag.blank | GTKWFlag.grp_begin
-               if highlight:
-                  flags |= GTKWFlag.highlight
-               self._set_flags(flags)
+            flags = GTKWFlag.blank | GTKWFlag.grp_begin
+            if highlight:
+               flags |= GTKWFlag.highlight
+            self._set_flags(flags)
+            if alias is not None:
                self._p(f'-{name}')
+            else:
+               self._p('-')  # leaves blank line
 
         flags = GTKWFlag.bin
         if isinstance(extraflags, GTKWFlag):
